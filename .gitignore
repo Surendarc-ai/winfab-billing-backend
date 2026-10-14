@@ -9,3 +9,6 @@ coverage/
 dist/
 .idea/
 .vscode/
+.aws-sam/
+packaged.yaml
+

@@ -1,0 +1,91 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: WinFab Billing API on AWS Lambda
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 512
+    Runtime: nodejs20.x
+    Architectures:
+      - x86_64
+
+Parameters:
+  MongoDbUri:
+    Type: String
+    NoEcho: true
+  JwtSecret:
+    Type: String
+    NoEcho: true
+  FrontendUrl:
+    Type: String
+    Default: http://localhost:3000
+  AdminEmail:
+    Type: String
+    Default: admin@winfab.com
+  AdminPassword:
+    Type: String
+    NoEcho: true
+    Default: admin123
+  AdminName:
+    Type: String
+    Default: WinFab Admin
+
+Resources:
+  BillingHttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: prod
+      CorsConfiguration:
+        AllowOrigins: !Split [",", !Ref FrontendUrl]
+        AllowHeaders:
+          - Authorization
+          - Content-Type
+        AllowMethods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - OPTIONS
+        AllowCredentials: true
+
+  BillingApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: winfab-billing-api
+      CodeUri: .
+      Handler: src/lambda.handler
+      Description: WinFab Billing Express API
+      Environment:
+        Variables:
+          NODE_ENV: production
+          MONGODB_URI: !Ref MongoDbUri
+          JWT_SECRET: !Ref JwtSecret
+          FRONTEND_URL: !Ref FrontendUrl
+          ADMIN_EMAIL: !Ref AdminEmail
+          ADMIN_PASSWORD: !Ref AdminPassword
+          ADMIN_NAME: !Ref AdminName
+      Events:
+        ProxyRoutes:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref BillingHttpApi
+            Path: /{proxy+}
+            Method: ANY
+        RootRoute:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref BillingHttpApi
+            Path: /
+            Method: ANY
+
+Outputs:
+  ApiUrl:
+    Description: HTTP API endpoint URL
+    Value: !Sub "https://${BillingHttpApi}.execute-api.${AWS::Region}.amazonaws.com/prod"
+  HealthUrl:
+    Description: Health check URL
+    Value: !Sub "https://${BillingHttpApi}.execute-api.${AWS::Region}.amazonaws.com/prod/api/health"
+  FunctionName:
+    Description: Lambda function name
+    Value: !Ref BillingApiFunction

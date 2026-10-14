@@ -1,0 +1,13 @@
+.env
+.env.*
+.aws-sam
+.git
+.gitignore
+.idea
+.vscode
+*.md
+coverage
+logs
+.DS_Store
+scripts
+samconfig.toml

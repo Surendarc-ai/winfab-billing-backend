@@ -1,0 +1,9 @@
+version = 0.1
+
+[default.deploy.parameters]
+stack_name = "winfab-billing-api"
+resolve_s3 = true
+capabilities = "CAPABILITY_IAM"
+region = "ap-south-1"
+confirm_changeset = false
+fail_on_empty_changeset = false
