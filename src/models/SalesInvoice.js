@@ -21,6 +21,12 @@ const salesInvoiceSchema = new mongoose.Schema(
       required: true,
     },
     poNumber: { type: String, required: true, trim: true },
+    customerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Customer",
+      default: null,
+    },
+    customerName: { type: String, trim: true, default: "" },
     billDate: { type: Date, default: Date.now },
     items: {
       type: [salesLineSchema],

@@ -1,6 +1,18 @@
 const mongoose = require("mongoose");
 const PurchaseOrder = require("../models/PurchaseOrder");
 const SalesInvoice = require("../models/SalesInvoice");
+const Customer = require("../models/Customer");
+
+async function resolveCustomer(customerId) {
+  if (!customerId) return { customerId: null, customerName: "" };
+  const customer = await Customer.findById(customerId);
+  if (!customer) {
+    const err = new Error("Customer not found");
+    err.status = 400;
+    throw err;
+  }
+  return { customerId: customer._id, customerName: customer.name };
+}
 
 async function nextBillNo() {
   const count = await SalesInvoice.countDocuments();
@@ -31,8 +43,15 @@ async function getInvoice(req, res) {
 }
 
 async function createInvoice(req, res) {
-  const { purchaseOrderId, billNo, billDate, notes, items, paymentReceived } =
-    req.body;
+  const {
+    purchaseOrderId,
+    billNo,
+    billDate,
+    notes,
+    items,
+    paymentReceived,
+    customerId,
+  } = req.body;
 
   if (!purchaseOrderId || !items?.length) {
     return res.status(400).json({
@@ -44,6 +63,7 @@ async function createInvoice(req, res) {
   session.startTransaction();
 
   try {
+    const customer = await resolveCustomer(customerId);
     const po = await PurchaseOrder.findById(purchaseOrderId).session(session);
     if (!po) {
       await session.abortTransaction();
@@ -112,6 +132,8 @@ async function createInvoice(req, res) {
           billNo: billNo || (await nextBillNo()),
           purchaseOrder: po._id,
           poNumber: po.poNumber,
+          customerId: customer.customerId,
+          customerName: customer.customerName,
           billDate: billDate || Date.now(),
           items: invoiceItems,
           totalAmount,
@@ -155,6 +177,7 @@ async function updateInvoice(req, res) {
       notes,
       paymentReceived,
       items,
+      customerId,
     } = req.body;
 
     if (billNo !== undefined) {
@@ -164,6 +187,12 @@ async function updateInvoice(req, res) {
         return res.status(400).json({ message: "Bill no is required" });
       }
       invoice.billNo = trimmed;
+    }
+
+    if (customerId !== undefined) {
+      const customer = await resolveCustomer(customerId || null);
+      invoice.customerId = customer.customerId;
+      invoice.customerName = customer.customerName;
     }
 
     if (billDate) invoice.billDate = billDate;

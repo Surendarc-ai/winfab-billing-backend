@@ -1,6 +1,8 @@
 const express = require("express");
 const cors = require("cors");
 const authRoutes = require("./routes/auth");
+const customerRoutes = require("./routes/customers");
+const supplierRoutes = require("./routes/suppliers");
 const purchaseRoutes = require("./routes/purchases");
 const salesInvoiceRoutes = require("./routes/salesInvoices");
 const { notFound, errorHandler } = require("./middleware/errorHandler");
@@ -30,6 +32,8 @@ app.get("/api/health", (_req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
+app.use("/api/customers", customerRoutes);
+app.use("/api/suppliers", supplierRoutes);
 app.use("/api/purchases", purchaseRoutes);
 app.use("/api/sales-invoices", salesInvoiceRoutes);
 

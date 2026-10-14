@@ -19,6 +19,11 @@ const purchaseOrderSchema = new mongoose.Schema(
   {
     poNumber: { type: String, required: true, unique: true, trim: true },
     supplier: { type: String, required: true, trim: true },
+    supplierId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Supplier",
+      default: null,
+    },
     poDate: { type: Date, default: Date.now },
     status: {
       type: String,
