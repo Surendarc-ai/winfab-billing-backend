@@ -6,7 +6,10 @@ async function resolveSupplier(body = {}) {
   let supplierName = body.supplier?.trim() || "";
 
   if (supplierId) {
-    const supplier = await Supplier.findById(supplierId);
+    const supplier = await Supplier.findOne({
+      _id: supplierId,
+      isDeleted: { $ne: true },
+    });
     if (!supplier) {
       const err = new Error("Supplier not found");
       err.status = 400;
@@ -54,13 +57,18 @@ function normalizeItems(items = [], existingItems = []) {
   });
 }
 
+const notDeleted = { isDeleted: { $ne: true } };
+
 async function listPurchases(_req, res) {
-  const orders = await PurchaseOrder.find().sort({ createdAt: -1 });
+  const orders = await PurchaseOrder.find(notDeleted).sort({ createdAt: -1 });
   res.json(orders);
 }
 
 async function getPurchase(req, res) {
-  const order = await PurchaseOrder.findById(req.params.id);
+  const order = await PurchaseOrder.findOne({
+    _id: req.params.id,
+    ...notDeleted,
+  });
   if (!order) {
     return res.status(404).json({ message: "Purchase order not found" });
   }
@@ -96,7 +104,10 @@ async function createPurchase(req, res) {
 }
 
 async function updatePurchase(req, res) {
-  const order = await PurchaseOrder.findById(req.params.id);
+  const order = await PurchaseOrder.findOne({
+    _id: req.params.id,
+    ...notDeleted,
+  });
   if (!order) {
     return res.status(404).json({ message: "Purchase order not found" });
   }
@@ -129,11 +140,15 @@ async function updatePurchase(req, res) {
 }
 
 async function deletePurchase(req, res) {
-  const order = await PurchaseOrder.findByIdAndDelete(req.params.id);
+  const order = await PurchaseOrder.findOneAndUpdate(
+    { _id: req.params.id, ...notDeleted },
+    { isDeleted: true, deletedAt: new Date() },
+    { new: true }
+  );
   if (!order) {
     return res.status(404).json({ message: "Purchase order not found" });
   }
-  res.json({ message: "Purchase order deleted" });
+  res.json({ message: "Purchase order moved to recycle bin" });
 }
 
 module.exports = {

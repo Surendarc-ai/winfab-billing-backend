@@ -17,7 +17,10 @@ function errorHandler(err, _req, res, _next) {
   }
 
   if (err.name === "CastError") {
-    return res.status(400).json({ message: "Invalid id" });
+    return res.status(400).json({
+      message: `Invalid id${err.path ? ` for ${err.path}` : ""}`,
+      value: err.value,
+    });
   }
 
   res.status(err.status || 500).json({

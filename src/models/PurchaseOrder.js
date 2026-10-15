@@ -36,9 +36,13 @@ const purchaseOrderSchema = new mongoose.Schema(
     },
     totalAmount: { type: Number, required: true, min: 0 },
     notes: { type: String, default: "" },
+    isDeleted: { type: Boolean, default: false, index: true },
+    deletedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );
+
+purchaseOrderSchema.index({ isDeleted: 1, deletedAt: -1 });
 
 purchaseOrderSchema.methods.refreshStatus = function refreshStatus() {
   const allBilled = this.items.every((item) => item.billedQty >= item.qty);

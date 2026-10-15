@@ -14,8 +14,10 @@ function sanitize(body = {}) {
   };
 }
 
+const notDeleted = { isDeleted: { $ne: true } };
+
 async function listSuppliers(req, res) {
-  const filter = {};
+  const filter = { ...notDeleted };
   if (req.query.active === "true") filter.active = true;
   if (req.query.active === "false") filter.active = false;
   const suppliers = await Supplier.find(filter).sort({ name: 1 });
@@ -23,7 +25,10 @@ async function listSuppliers(req, res) {
 }
 
 async function getSupplier(req, res) {
-  const supplier = await Supplier.findById(req.params.id);
+  const supplier = await Supplier.findOne({
+    _id: req.params.id,
+    ...notDeleted,
+  });
   if (!supplier) {
     return res.status(404).json({ message: "Supplier not found" });
   }
@@ -44,10 +49,11 @@ async function updateSupplier(req, res) {
   if (!data.name) {
     return res.status(400).json({ message: "Name is required" });
   }
-  const supplier = await Supplier.findByIdAndUpdate(req.params.id, data, {
-    new: true,
-    runValidators: true,
-  });
+  const supplier = await Supplier.findOneAndUpdate(
+    { _id: req.params.id, ...notDeleted },
+    data,
+    { new: true, runValidators: true }
+  );
   if (!supplier) {
     return res.status(404).json({ message: "Supplier not found" });
   }
@@ -55,11 +61,15 @@ async function updateSupplier(req, res) {
 }
 
 async function deleteSupplier(req, res) {
-  const supplier = await Supplier.findByIdAndDelete(req.params.id);
+  const supplier = await Supplier.findOneAndUpdate(
+    { _id: req.params.id, ...notDeleted },
+    { isDeleted: true, deletedAt: new Date() },
+    { new: true }
+  );
   if (!supplier) {
     return res.status(404).json({ message: "Supplier not found" });
   }
-  res.json({ message: "Supplier deleted" });
+  res.json({ message: "Supplier moved to recycle bin" });
 }
 
 module.exports = {

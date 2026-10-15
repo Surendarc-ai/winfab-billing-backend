@@ -2,6 +2,12 @@ const mongoose = require("mongoose");
 
 const salesLineSchema = new mongoose.Schema(
   {
+    purchaseOrder: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "PurchaseOrder",
+      required: true,
+    },
+    poNumber: { type: String, required: true, trim: true },
     poItemId: { type: mongoose.Schema.Types.ObjectId, required: true },
     partNo: { type: String, required: true, trim: true },
     description: { type: String, required: true, trim: true },
@@ -15,12 +21,19 @@ const salesLineSchema = new mongoose.Schema(
 const salesInvoiceSchema = new mongoose.Schema(
   {
     billNo: { type: String, required: true, unique: true, trim: true },
+    purchaseOrders: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "PurchaseOrder",
+      },
+    ],
+    poNumbers: [{ type: String, trim: true }],
+    // Legacy single-PO fields kept for older records / search
     purchaseOrder: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "PurchaseOrder",
-      required: true,
     },
-    poNumber: { type: String, required: true, trim: true },
+    poNumber: { type: String, trim: true, default: "" },
     customerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Customer",
@@ -36,8 +49,12 @@ const salesInvoiceSchema = new mongoose.Schema(
     paymentReceived: { type: Boolean, default: false },
     paymentDate: { type: Date },
     notes: { type: String, default: "" },
+    isDeleted: { type: Boolean, default: false, index: true },
+    deletedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );
+
+salesInvoiceSchema.index({ isDeleted: 1, deletedAt: -1 });
 
 module.exports = mongoose.model("SalesInvoice", salesInvoiceSchema);

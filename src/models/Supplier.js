@@ -11,10 +11,13 @@ const supplierSchema = new mongoose.Schema(
     state: { type: String, trim: true, default: "" },
     notes: { type: String, trim: true, default: "" },
     active: { type: Boolean, default: true },
+    isDeleted: { type: Boolean, default: false, index: true },
+    deletedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );
 
 supplierSchema.index({ name: 1 });
+supplierSchema.index({ isDeleted: 1, deletedAt: -1 });
 
 module.exports = mongoose.model("Supplier", supplierSchema);

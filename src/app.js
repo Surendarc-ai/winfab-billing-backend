@@ -1,10 +1,12 @@
 const express = require("express");
 const cors = require("cors");
 const authRoutes = require("./routes/auth");
+const companyRoutes = require("./routes/company");
 const customerRoutes = require("./routes/customers");
 const supplierRoutes = require("./routes/suppliers");
 const purchaseRoutes = require("./routes/purchases");
 const salesInvoiceRoutes = require("./routes/salesInvoices");
+const recycleBinRoutes = require("./routes/recycleBin");
 const { notFound, errorHandler } = require("./middleware/errorHandler");
 
 const app = express();
@@ -25,17 +27,19 @@ app.use(
     credentials: true,
   })
 );
-app.use(express.json());
+app.use(express.json({ limit: "2mb" }));
 
 app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", service: "winfab-billing-backend" });
 });
 
 app.use("/api/auth", authRoutes);
+app.use("/api/company", companyRoutes);
 app.use("/api/customers", customerRoutes);
 app.use("/api/suppliers", supplierRoutes);
 app.use("/api/purchases", purchaseRoutes);
 app.use("/api/sales-invoices", salesInvoiceRoutes);
+app.use("/api/recycle-bin", recycleBinRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
