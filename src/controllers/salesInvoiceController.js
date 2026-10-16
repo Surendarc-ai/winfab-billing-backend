@@ -19,10 +19,49 @@ async function resolveCustomer(customerId) {
   return { customerId: customer._id, customerName: customer.name };
 }
 
-async function nextBillNo() {
-  const count = await SalesInvoice.countDocuments();
-  const year = new Date().getFullYear();
-  return `BILL-${year}-${String(count + 1).padStart(4, "0")}`;
+/**
+ * Financial year: 1 Apr → 31 Mar
+ *   Apr 2026 – Mar 2027 → 26-27
+ *   Apr 2027 – Mar 2028 → 27-28  (series resets to 001)
+ */
+function financialYearParts(date = new Date()) {
+  const month = date.getMonth(); // 0–11 (Apr = 3)
+  const year = date.getFullYear();
+  const startYear = month >= 3 ? year : year - 1;
+  const yy = String(startYear % 100).padStart(2, "0");
+  const yy2 = String((startYear + 1) % 100).padStart(2, "0");
+  return { yy, yy2, suffix: `${yy}-${yy2}` };
+}
+
+/**
+ * Per-FY series:
+ *   WFE-001-26-27 … WFE-999-26-27  (until Mar 2027)
+ *   WFE-001-27-28 …                (from Apr 2027, starts again at 001)
+ */
+async function nextBillNo(asOf = new Date()) {
+  const { suffix } = financialYearParts(asOf);
+  const pattern = new RegExp(`^WFE-(\\d+)-${suffix}$`, "i");
+  // Only count invoices for this FY — new FY always starts at 001
+  const docs = await SalesInvoice.find({
+    billNo: { $regex: `^WFE-\\d+-${suffix}$`, $options: "i" },
+  })
+    .select("billNo")
+    .lean();
+
+  let maxSeq = 0;
+  for (const doc of docs) {
+    const match = String(doc.billNo || "").match(pattern);
+    if (match) {
+      maxSeq = Math.max(maxSeq, parseInt(match[1], 10) || 0);
+    }
+  }
+
+  return `WFE-${String(maxSeq + 1).padStart(3, "0")}-${suffix}`;
+}
+
+async function previewNextBillNo(_req, res) {
+  const billNo = await nextBillNo();
+  res.json({ billNo });
 }
 
 function uniqueIds(ids = []) {
@@ -256,8 +295,13 @@ async function createInvoice(req, res) {
     const invoiceItems = buildInvoiceItems(items, poMap);
     await savePoMap(poMap, session);
 
+    // Prefill series WFE-xxx-YY-YY; client may override (editable)
+    const asOf = billDate ? new Date(billDate) : new Date();
+    const trimmedBillNo = String(billNo || "").trim();
+    const resolvedBillNo = trimmedBillNo || (await nextBillNo(asOf));
+
     const draft = {
-      billNo: billNo || (await nextBillNo()),
+      billNo: resolvedBillNo,
       customerId: customer.customerId,
       customerName: customer.customerName,
       billDate: billDate || Date.now(),
@@ -270,7 +314,25 @@ async function createInvoice(req, res) {
     };
     applyPoRefs(draft, invoiceItems);
 
-    const [invoice] = await SalesInvoice.create([draft], { session });
+    let invoice;
+    try {
+      [invoice] = await SalesInvoice.create([draft], { session });
+    } catch (createErr) {
+      if (createErr && createErr.code === 11000) {
+        // Auto-generated race: retry once. Manual duplicate: surface error.
+        if (!trimmedBillNo) {
+          draft.billNo = await nextBillNo(asOf);
+          [invoice] = await SalesInvoice.create([draft], { session });
+        } else {
+          await session.abortTransaction();
+          return res.status(400).json({
+            message: `Bill no ${resolvedBillNo} already exists`,
+          });
+        }
+      } else {
+        throw createErr;
+      }
+    }
     await session.commitTransaction();
 
     const populated = await SalesInvoice.findById(invoice._id)
@@ -409,6 +471,7 @@ async function deleteInvoice(req, res) {
 module.exports = {
   listInvoices,
   getInvoice,
+  previewNextBillNo,
   createInvoice,
   updateInvoice,
   deleteInvoice,
