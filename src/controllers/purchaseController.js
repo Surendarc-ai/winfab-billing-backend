@@ -1,24 +1,28 @@
 const PurchaseOrder = require("../models/PurchaseOrder");
-const Supplier = require("../models/Supplier");
+const Customer = require("../models/Customer");
 
-async function resolveSupplier(body = {}) {
-  let supplierId = body.supplierId || null;
-  let supplierName = body.supplier?.trim() || "";
+async function resolveCustomer(body = {}) {
+  let customerId = body.customerId || null;
+  let customerName = body.customer?.trim() || "";
 
-  if (supplierId) {
-    const supplier = await Supplier.findOne({
-      _id: supplierId,
+  // Backward compat: accept old supplier fields as customer
+  if (!customerId && body.supplierId) customerId = body.supplierId;
+  if (!customerName && body.supplier) customerName = String(body.supplier).trim();
+
+  if (customerId) {
+    const customer = await Customer.findOne({
+      _id: customerId,
       isDeleted: { $ne: true },
     });
-    if (!supplier) {
-      const err = new Error("Supplier not found");
+    if (!customer) {
+      const err = new Error("Customer not found");
       err.status = 400;
       throw err;
     }
-    supplierName = supplier.name;
+    customerName = customer.name;
   }
 
-  return { supplierId, supplierName };
+  return { customerId, customerName };
 }
 
 function normalizeItems(items = [], existingItems = []) {
@@ -77,11 +81,11 @@ async function getPurchase(req, res) {
 
 async function createPurchase(req, res) {
   const { poNumber, poDate, notes, items } = req.body;
-  const { supplierId, supplierName } = await resolveSupplier(req.body);
+  const { customerId, customerName } = await resolveCustomer(req.body);
 
-  if (!poNumber || !supplierName || !items?.length) {
+  if (!poNumber || !customerName || !items?.length) {
     return res.status(400).json({
-      message: "poNumber, supplier (or supplierId), and items are required",
+      message: "poNumber, customer (or customerId), and items are required",
     });
   }
 
@@ -92,8 +96,11 @@ async function createPurchase(req, res) {
 
   const order = await PurchaseOrder.create({
     poNumber: poNumber.trim(),
-    supplier: supplierName,
-    supplierId,
+    customer: customerName,
+    customerId,
+    // Keep legacy supplier fields in sync for old UI/reads
+    supplier: customerName,
+    supplierId: null,
     poDate: poDate || Date.now(),
     notes: notes || "",
     items: normalized,
@@ -115,13 +122,20 @@ async function updatePurchase(req, res) {
   const { poNumber, poDate, notes, items, status } = req.body;
 
   if (poNumber) order.poNumber = poNumber.trim();
-  if (req.body.supplierId !== undefined || req.body.supplier) {
-    const { supplierId, supplierName } = await resolveSupplier(req.body);
-    if (!supplierName) {
-      return res.status(400).json({ message: "Supplier is required" });
+  if (
+    req.body.customerId !== undefined ||
+    req.body.customer ||
+    req.body.supplierId !== undefined ||
+    req.body.supplier
+  ) {
+    const { customerId, customerName } = await resolveCustomer(req.body);
+    if (!customerName) {
+      return res.status(400).json({ message: "Customer is required" });
     }
-    order.supplier = supplierName;
-    order.supplierId = supplierId;
+    order.customer = customerName;
+    order.customerId = customerId;
+    order.supplier = customerName;
+    order.supplierId = null;
   }
   if (poDate) order.poDate = poDate;
   if (notes !== undefined) order.notes = notes;

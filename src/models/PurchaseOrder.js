@@ -18,7 +18,15 @@ const purchaseItemSchema = new mongoose.Schema(
 const purchaseOrderSchema = new mongoose.Schema(
   {
     poNumber: { type: String, required: true, unique: true, trim: true },
-    supplier: { type: String, required: true, trim: true },
+    // Customer PO received from customer (billing source)
+    customer: { type: String, trim: true, default: "" },
+    customerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Customer",
+      default: null,
+    },
+    // Legacy fields (older records); prefer customer / customerId
+    supplier: { type: String, trim: true, default: "" },
     supplierId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Supplier",

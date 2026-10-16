@@ -9,7 +9,7 @@ const deleted = { isDeleted: true };
 const TYPE_MAP = {
   customers: { model: Customer, label: "Customer" },
   suppliers: { model: Supplier, label: "Supplier" },
-  purchases: { model: PurchaseOrder, label: "Purchase" },
+  purchases: { model: PurchaseOrder, label: "Purchase Order" },
   "sales-invoices": { model: SalesInvoice, label: "Sales invoice" },
 };
 
@@ -48,10 +48,10 @@ async function listRecycleBin(_req, res) {
     ...purchases.map((doc) => ({
       id: doc._id,
       type: "purchases",
-      typeLabel: "Purchase",
+      typeLabel: "Purchase Order",
       name: itemLabel("purchases", doc),
       deletedAt: doc.deletedAt,
-      meta: doc.supplier || "",
+      meta: doc.customer || doc.supplier || "",
     })),
     ...salesInvoices.map((doc) => ({
       id: doc._id,
