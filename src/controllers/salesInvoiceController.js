@@ -40,21 +40,19 @@ function financialYearParts(date = new Date()) {
  */
 async function nextBillNo(asOf = new Date()) {
   const { suffix } = financialYearParts(asOf);
-  const pattern = new RegExp(`^WFE-(\\d+)-${suffix}$`, "i");
-  // Only count invoices for this FY — new FY always starts at 001
-  const docs = await SalesInvoice.find({
+  // Zero-padded seq sorts lexicographically within the same FY
+  const latest = await SalesInvoice.findOne({
     billNo: { $regex: `^WFE-\\d+-${suffix}$`, $options: "i" },
   })
+    .sort({ billNo: -1 })
     .select("billNo")
     .lean();
 
   let maxSeq = 0;
-  for (const doc of docs) {
-    const match = String(doc.billNo || "").match(pattern);
-    if (match) {
-      maxSeq = Math.max(maxSeq, parseInt(match[1], 10) || 0);
-    }
-  }
+  const match = String(latest?.billNo || "").match(
+    new RegExp(`^WFE-(\\d+)-${suffix}$`, "i")
+  );
+  if (match) maxSeq = parseInt(match[1], 10) || 0;
 
   return `WFE-${String(maxSeq + 1).padStart(3, "0")}-${suffix}`;
 }
@@ -188,10 +186,12 @@ function buildInvoiceItems(items, poMap) {
 }
 
 async function savePoMap(poMap, session) {
-  for (const po of poMap.values()) {
-    po.refreshStatus();
-    await po.save({ session });
-  }
+  await Promise.all(
+    [...poMap.values()].map((po) => {
+      po.refreshStatus();
+      return po.save({ session });
+    })
+  );
 }
 
 function applyPoRefs(invoice, invoiceItems) {
@@ -235,10 +235,10 @@ async function listInvoices(req, res) {
     ];
   }
 
+  // Denormalized poNumber / customerName already on doc — skip populate for list
   const invoices = await SalesInvoice.find(filter)
-    .populate("purchaseOrder", "poNumber supplier status")
-    .populate("purchaseOrders", "poNumber supplier status")
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: -1 })
+    .lean();
   res.json(invoices);
 }
 
@@ -247,8 +247,9 @@ async function getInvoice(req, res) {
     _id: req.params.id,
     ...notDeleted,
   })
-    .populate("purchaseOrder", "poNumber supplier status items")
-    .populate("purchaseOrders", "poNumber supplier status items");
+    .populate("purchaseOrder", "poNumber customer supplier status")
+    .populate("purchaseOrders", "poNumber customer supplier status")
+    .lean();
   if (!invoice) {
     return res.status(404).json({ message: "Sales invoice not found" });
   }

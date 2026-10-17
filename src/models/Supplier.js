@@ -19,5 +19,6 @@ const supplierSchema = new mongoose.Schema(
 
 supplierSchema.index({ name: 1 });
 supplierSchema.index({ isDeleted: 1, deletedAt: -1 });
+supplierSchema.index({ isDeleted: 1, name: 1 });
 
 module.exports = mongoose.model("Supplier", supplierSchema);

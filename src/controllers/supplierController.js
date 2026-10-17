@@ -20,7 +20,7 @@ async function listSuppliers(req, res) {
   const filter = { ...notDeleted };
   if (req.query.active === "true") filter.active = true;
   if (req.query.active === "false") filter.active = false;
-  const suppliers = await Supplier.find(filter).sort({ name: 1 });
+  const suppliers = await Supplier.find(filter).sort({ name: 1 }).lean();
   res.json(suppliers);
 }
 
@@ -28,7 +28,7 @@ async function getSupplier(req, res) {
   const supplier = await Supplier.findOne({
     _id: req.params.id,
     ...notDeleted,
-  });
+  }).lean();
   if (!supplier) {
     return res.status(404).json({ message: "Supplier not found" });
   }

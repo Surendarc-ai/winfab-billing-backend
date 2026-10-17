@@ -1,6 +1,6 @@
 const jwt = require("jsonwebtoken");
-const User = require("../models/User");
 
+/** Trust JWT claims — no Mongo round-trip on every request */
 async function requireAuth(req, res, next) {
   try {
     const header = req.headers.authorization || "";
@@ -11,13 +11,17 @@ async function requireAuth(req, res, next) {
     }
 
     const payload = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(payload.id).select("-password");
-
-    if (!user) {
-      return res.status(401).json({ message: "User not found" });
+    if (!payload?.id) {
+      return res.status(401).json({ message: "Invalid or expired token" });
     }
 
-    req.user = user;
+    req.user = {
+      _id: payload.id,
+      id: payload.id,
+      name: payload.name || "",
+      email: payload.email || "",
+      role: payload.role || "admin",
+    };
     next();
   } catch (_err) {
     return res.status(401).json({ message: "Invalid or expired token" });

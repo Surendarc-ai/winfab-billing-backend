@@ -22,10 +22,22 @@ function itemLabel(type, doc) {
 
 async function listRecycleBin(_req, res) {
   const [customers, suppliers, purchases, salesInvoices] = await Promise.all([
-    Customer.find(deleted).sort({ deletedAt: -1 }),
-    Supplier.find(deleted).sort({ deletedAt: -1 }),
-    PurchaseOrder.find(deleted).sort({ deletedAt: -1 }),
-    SalesInvoice.find(deleted).sort({ deletedAt: -1 }),
+    Customer.find(deleted)
+      .select("name email phone deletedAt")
+      .sort({ deletedAt: -1 })
+      .lean(),
+    Supplier.find(deleted)
+      .select("name email phone deletedAt")
+      .sort({ deletedAt: -1 })
+      .lean(),
+    PurchaseOrder.find(deleted)
+      .select("poNumber customer supplier deletedAt")
+      .sort({ deletedAt: -1 })
+      .lean(),
+    SalesInvoice.find(deleted)
+      .select("billNo customerName poNumber deletedAt")
+      .sort({ deletedAt: -1 })
+      .lean(),
   ]);
 
   const items = [

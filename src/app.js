@@ -25,6 +25,7 @@ app.use(
       return callback(null, false);
     },
     credentials: true,
+    maxAge: 86400,
   })
 );
 app.use(express.json({ limit: "2mb" }));

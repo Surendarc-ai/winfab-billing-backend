@@ -19,10 +19,15 @@ async function connectDB() {
 
   if (!cached.promise) {
     mongoose.set("strictQuery", true);
+    const isLambda = Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME);
     cached.promise = mongoose
       .connect(uri, {
         bufferCommands: false,
         serverSelectionTimeoutMS: 10000,
+        // Keep pool small on Lambda; larger locally for parallel requests
+        maxPoolSize: isLambda ? 1 : 10,
+        minPoolSize: 0,
+        maxIdleTimeMS: 30000,
       })
       .then((mongooseInstance) => {
         console.log("MongoDB connected");

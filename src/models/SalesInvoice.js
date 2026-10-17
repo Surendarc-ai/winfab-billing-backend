@@ -56,5 +56,7 @@ const salesInvoiceSchema = new mongoose.Schema(
 );
 
 salesInvoiceSchema.index({ isDeleted: 1, deletedAt: -1 });
+salesInvoiceSchema.index({ isDeleted: 1, createdAt: -1 });
+salesInvoiceSchema.index({ billNo: 1 });
 
 module.exports = mongoose.model("SalesInvoice", salesInvoiceSchema);

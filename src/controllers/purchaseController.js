@@ -64,7 +64,9 @@ function normalizeItems(items = [], existingItems = []) {
 const notDeleted = { isDeleted: { $ne: true } };
 
 async function listPurchases(_req, res) {
-  const orders = await PurchaseOrder.find(notDeleted).sort({ createdAt: -1 });
+  const orders = await PurchaseOrder.find(notDeleted)
+    .sort({ createdAt: -1 })
+    .lean();
   res.json(orders);
 }
 
@@ -72,7 +74,7 @@ async function getPurchase(req, res) {
   const order = await PurchaseOrder.findOne({
     _id: req.params.id,
     ...notDeleted,
-  });
+  }).lean();
   if (!order) {
     return res.status(404).json({ message: "Purchase order not found" });
   }

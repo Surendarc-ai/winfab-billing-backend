@@ -31,9 +31,9 @@ function sanitize(body = {}) {
 }
 
 async function getOrCreateCompany() {
-  let company = await Company.findOne().sort({ createdAt: 1 });
+  let company = await Company.findOne().sort({ createdAt: 1 }).lean();
   if (!company) {
-    company = await Company.create(DEFAULTS);
+    company = (await Company.create(DEFAULTS)).toObject();
   }
   return company;
 }
